@@ -1,0 +1,198 @@
+# Acoustic Drone Detection Configuration
+# Istanbul Technical University - Telecommunication Engineering
+# Master's Thesis Project
+
+# =============================================================================
+# AUDIO PROCESSING
+# =============================================================================
+audio:
+  sample_rate: 16000  # Hz - standard for speech/audio ML
+  duration: 3.0       # seconds per segment
+  overlap: 0.5        # overlap ratio between segments
+  mono: true
+
+# =============================================================================
+# FEATURE EXTRACTION
+# =============================================================================
+features:
+  # Mel Spectrogram
+  mel_spectrogram:
+    n_mels: 128
+    n_fft: 2048
+    hop_length: 512
+    fmin: 0
+    fmax: 8000  # Most drone signatures below 8kHz
+    power: 2.0
+    
+  # MFCC
+  mfcc:
+    n_mfcc: 40
+    n_fft: 2048
+    hop_length: 512
+    
+  # STFT
+  stft:
+    n_fft: 2048
+    hop_length: 512
+    
+  # Spectral features
+  spectral:
+    contrast_bands: 6
+    centroid: true
+    bandwidth: true
+    rolloff: true
+
+# =============================================================================
+# DATA AUGMENTATION
+# =============================================================================
+augmentation:
+  enabled: true
+  
+  # Time domain
+  time_stretch:
+    enabled: true
+    rate_min: 0.8
+    rate_max: 1.2
+    
+  pitch_shift:
+    enabled: true
+    steps_min: -2
+    steps_max: 2
+    
+  # Noise addition
+  noise:
+    enabled: true
+    snr_min: 5   # dB
+    snr_max: 30  # dB
+    
+  # SpecAugment (frequency/time masking)
+  spec_augment:
+    enabled: true
+    freq_mask_param: 30
+    time_mask_param: 40
+    num_freq_masks: 2
+    num_time_masks: 2
+
+# =============================================================================
+# MODEL ARCHITECTURES
+# =============================================================================
+models:
+  # Detection model (binary classification)
+  detection:
+    architecture: "efficientnet_b0"  # or resnet18, vgg11, custom_cnn
+    pretrained: true
+    num_classes: 2
+    dropout: 0.3
+    
+  # Classification model (drone type/model)
+  classification:
+    architecture: "efficientnet_b2"
+    pretrained: true
+    num_classes: 10  # Adjust based on dataset
+    dropout: 0.4
+    
+  # Custom CNN (alternative)
+  custom_cnn:
+    channels: [32, 64, 128, 256]
+    kernel_size: 3
+    pool_size: 2
+    fc_units: [512, 256]
+
+# =============================================================================
+# TRAINING
+# =============================================================================
+training:
+  # General
+  epochs: 100
+  batch_size: 32
+  num_workers: 4
+  pin_memory: true
+  
+  # Optimizer
+  optimizer:
+    name: "adamw"
+    lr: 0.001
+    weight_decay: 0.01
+    
+  # Scheduler
+  scheduler:
+    name: "cosine"  # or step, plateau
+    T_max: 100
+    eta_min: 0.00001
+    
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 15
+    min_delta: 0.001
+    monitor: "val_loss"
+    
+  # Mixed precision (RTX 5070 supports this well)
+  mixed_precision: true
+  
+  # Gradient clipping
+  gradient_clip: 1.0
+
+# =============================================================================
+# VALIDATION
+# =============================================================================
+validation:
+  split_ratio: 0.2
+  stratified: true
+  k_folds: 5  # For cross-validation
+
+# =============================================================================
+# LOCALIZATION (Microphone Array)
+# =============================================================================
+localization:
+  # GCC-PHAT parameters
+  gcc_phat:
+    max_delay: 0.001  # seconds (based on array size)
+    interp_factor: 16
+    
+  # Microphone array (example configuration)
+  array:
+    num_mics: 4
+    geometry: "tetrahedral"  # or linear, circular, planar
+    spacing: 0.1  # meters
+    
+  # DOA estimation
+  doa:
+    method: "srp_phat"  # or music, esprit
+    resolution: 1  # degrees
+
+# =============================================================================
+# INFERENCE
+# =============================================================================
+inference:
+  batch_size: 1
+  threshold: 0.5  # Detection confidence threshold
+  device: "cuda"  # or cpu
+
+# =============================================================================
+# LOGGING & CHECKPOINTS
+# =============================================================================
+logging:
+  level: "INFO"
+  tensorboard: true
+  wandb:
+    enabled: false
+    project: "acoustic-drone-detection"
+    entity: "itu-telecom"
+    
+checkpoints:
+  save_dir: "models/checkpoints"
+  save_best: true
+  save_last: true
+  save_every_n_epochs: 10
+
+# =============================================================================
+# PATHS
+# =============================================================================
+paths:
+  data_raw: "data/raw"
+  data_processed: "data/processed"
+  data_external: "data/external"
+  models: "models"
+  logs: "logs"
+  experiments: "experiments"
