@@ -76,14 +76,7 @@ pip install -r requirements.txt
 - GCC-PHAT (Generalized Cross-Correlation with Phase Transform)
 - Beamforming
 
-## License
-
-[To be determined]
-
 ## Author
 
-[Your Name]
+İhsan Mert Muhacıroğlu
 
-## Acknowledgments
-
-[To be added]
