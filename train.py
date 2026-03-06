@@ -7,8 +7,6 @@ This script provides a complete training pipeline from data loading to model eva
 Usage:
     python train.py --config configs/config.yaml
     python train.py --datasets alemadi thesis --epochs 50 --batch-size 32
-
-Author: ITU Telecommunication Engineering
 """
 
 import argparse
@@ -84,7 +82,7 @@ def parse_args():
     parser.add_argument('--data-root', type=str, default='data/external',
                         help='Root directory for datasets')
     parser.add_argument('--datasets', nargs='+', default=['alemadi'],
-                        choices=['dads', 'alemadi', 'thesis', 'droneaudioset'],
+                        choices=['dads', 'alemadi', 'thesis', 'droneaudioset','acolab'],
                         help='Datasets to use for training')
     
     # Model arguments
@@ -218,11 +216,22 @@ def main():
     
     # Create model
     print("\nCreating model...")
-    model = create_model(
-        args.model,
-        num_classes=args.num_classes,
-        pretrained=args.pretrained
-    )
+    # model = create_model(
+    #     args.model,
+    #     num_classes=args.num_classes,
+    #     pretrained=args.pretrained
+    # )
+    if args.model in ['efficientnet_b0', 'efficientnet_b2', 'resnet18', 'resnet34', 'resnet50', 'vgg11', 'vgg16']:
+        model = create_model(
+            args.model,
+            num_classes=args.num_classes,
+            pretrained=args.pretrained
+        )
+    else:
+        model = create_model(
+            args.model,
+            num_classes=args.num_classes
+    )    
     
     total_params, trainable_params = count_parameters(model)
     print(f"Model: {args.model}")
@@ -270,7 +279,7 @@ def main():
     # Evaluate on test set
     print("\nEvaluating on test set...")
     model.load_state_dict(
-        torch.load(exp_dir / 'checkpoints' / 'best_model.pt')['model_state_dict']
+        torch.load(exp_dir / 'checkpoints' / 'best_model.pt', weights_only=False)['model_state_dict']
     )
     
     test_metrics = trainer.validate(test_loader)
