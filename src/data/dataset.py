@@ -216,7 +216,7 @@ class AlEmadiDataset(BaseAudioDataset):
     def __init__(
         self,
         root: str = 'data/external/alemadi',
-        task: str = 'binary',  # 'binary' or 'multiclass'
+        task: str = 'Binary_Drone_Audio',  # 'binary' or 'multiclass'
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -224,8 +224,8 @@ class AlEmadiDataset(BaseAudioDataset):
         self.root = Path(root)
         self.task = task
         
-        if task == 'binary':
-            self.label_names = {0: 'unknown', 1: 'drone'}
+        if task == 'Binary_Drone_Audio':
+            self.label_names = {0: 'unknown', 1: 'yes'}
         else:
             self.label_names = {0: 'Unknown', 1: 'Bebop', 2: 'AR', 3: 'Phantom'}
             
@@ -238,38 +238,92 @@ class AlEmadiDataset(BaseAudioDataset):
             self.root / 'DroneAudioDataset' / self.task,
             self.root / self.task,
             self.root / ('Binary' if self.task == 'binary' else 'Multiclass'),
+            self.root / ('Binary_Drone_Audio' if self.task == 'binary' else 'Multiclass_Drone_Audio'),
             self.root,
         ]
         
         data_path = None
         for path in possible_paths:
             if path.exists():
-                data_path = path
-                break
-                
+                # Check if this path has the expected subfolders
+                subfolders = [f.name.lower() for f in path.iterdir() if f.is_dir()]
+                if any('drone' in s or 'unknown' in s or 'bebop' in s for s in subfolders):
+                    data_path = path
+                    break
+                    
         if data_path is None:
             warnings.warn(f"Al-Emadi dataset not found at {self.root}")
             return
+        
+        print(f"Found Al-Emadi data at: {data_path}")
             
         # Load based on task
         if self.task == 'binary':
-            # Binary structure: Drone/, Unknown/
-            for label_name, label_id in [('Unknown', 0), ('Drone', 1)]:
-                label_path = data_path / label_name
-                if label_path.exists():
-                    for audio_file in label_path.glob('**/*.wav'):
-                        self.audio_paths.append(str(audio_file))
-                        self.labels.append(label_id)
+            # Binary structure - handle various naming conventions
+            for subfolder in data_path.iterdir():
+                if not subfolder.is_dir():
+                    continue
+                    
+                folder_name = subfolder.name.lower()
+                
+                # Determine label based on folder name
+                if 'drone' in folder_name and 'unknown' not in folder_name and 'no' not in folder_name:
+                    label = 1  # Drone
+                elif 'unknown' in folder_name or 'noise' in folder_name or 'no_drone' in folder_name:
+                    label = 0  # Not drone
+                else:
+                    continue  # Skip unrecognized folders
+                
+                # Load all wav files from this folder
+                for audio_file in subfolder.glob('**/*.wav'):
+                    self.audio_paths.append(str(audio_file))
+                    self.labels.append(label)
+                    
         else:
-            # Multiclass structure: Unknown/, Bebop/, AR/, Phantom/
-            for label_name, label_id in self.label_names.items():
-                label_path = data_path / label_name
-                if label_path.exists():
-                    for audio_file in label_path.glob('**/*.wav'):
-                        self.audio_paths.append(str(audio_file))
-                        self.labels.append(label_id)
+            # Multiclass structure
+            label_mapping = {
+                'unknown': 0,
+                'bebop': 1,
+                'bebop_1': 1,
+                'ar': 2,
+                'mambo': 2,
+                'membo_1': 2,
+                'mambo_1': 2,
+                'phantom': 3,
+                'phantom_1': 3,
+            }
+            
+            for subfolder in data_path.iterdir():
+                if not subfolder.is_dir():
+                    continue
+                    
+                folder_name = subfolder.name.lower()
+                
+                # Find matching label
+                label = None
+                for key, value in label_mapping.items():
+                    if key in folder_name:
+                        label = value
+                        break
+                
+                if label is None:
+                    print(f"  Skipping unrecognized folder: {subfolder.name}")
+                    continue
+                
+                # Load all wav files from this folder
+                for audio_file in subfolder.glob('**/*.wav'):
+                    self.audio_paths.append(str(audio_file))
+                    self.labels.append(label)
                         
         print(f"Loaded {len(self.audio_paths)} samples from Al-Emadi dataset")
+        
+        # Show distribution
+        if self.audio_paths:
+            from collections import Counter
+            dist = Counter(self.labels)
+            for label_id, count in sorted(dist.items()):
+                label_name = self.label_names.get(label_id, f"Label {label_id}")
+                print(f"  - {label_name}: {count} samples")
 
 
 class DroneThesisDataset(BaseAudioDataset):
@@ -335,6 +389,35 @@ class DroneThesisDataset(BaseAudioDataset):
             
         print(f"Loaded {len(self.audio_paths)} samples from DroneThesis dataset")
 
+class AcoLabDataset(BaseAudioDataset):
+    """
+    AcoLab Dataset - Custom recordings from ITU Acoustic Lab.
+    """
+    
+    def __init__(
+        self,
+        root: str = 'data/external/acolab',
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.root = Path(root)
+        self.label_names = {0: 'no_drone', 1: 'drone'}
+        self._load_data()
+        
+    def _load_data(self):
+        for label_name, label_id in [('no_drone', 0), ('drone', 1)]:
+            label_path = self.root / label_name
+            if label_path.exists():
+                for audio_file in label_path.glob('*.wav'):
+                    self.audio_paths.append(str(audio_file))
+                    self.labels.append(label_id)
+        
+        print(f"Loaded {len(self.audio_paths)} samples from AcoLab dataset")
+        if self.audio_paths:
+            from collections import Counter
+            dist = Counter(self.labels)
+            for label_id, count in sorted(dist.items()):
+                print(f"  - {self.label_names[label_id]}: {count} samples")
 
 class DroneAudiosetDataset(BaseAudioDataset):
     """
@@ -461,6 +544,12 @@ class CombinedDroneDataset(Dataset):
                     root=self.data_root / 'drone_detection_thesis',
                     sample_rate=self.sample_rate,
                     duration=self.duration
+                )
+            elif name == 'acolab':
+                ds = AcoLabDataset(
+                root=self.data_root / 'acolab',
+                sample_rate=self.sample_rate,
+                duration=self.duration
                 )
             else:
                 warnings.warn(f"Unknown dataset: {name}")
