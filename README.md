@@ -79,4 +79,6 @@ pip install -r requirements.txt
 ## Author
 
 İhsan Mert Muhacıroğlu
+muhaciroglu19@itu.edu.tr
+Please Give mention if you are using this code, or implementations.
 
