@@ -3,6 +3,7 @@
 ## Master's Thesis Project
 
 This repository contains the research code and documentation for acoustic-based drone detection, localization, and classification.
+-There are several datasets used for this research. Also our recordings from several different constraints are used in order to make it more realistic research.
 
 ## Research Objectives
 
