@@ -1,4 +1,4 @@
-# Acoustic Drone Detection, Localization, and Classification
+# Acoustic Drone Detection,  Classification and Localization
 
 ## Master's Thesis Project
 
